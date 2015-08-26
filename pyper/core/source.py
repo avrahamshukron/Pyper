@@ -39,6 +39,7 @@ class SourceFile(object):
         self._indentation = indentation
         self._line_separator = line_separator
         self._indentation_level = 0
+        self._is_new_line = True
         self._elements = []
 
     def indent(self, levels=1):
@@ -82,10 +83,13 @@ class SourceFile(object):
         :param text: The text to write.
         :return: self.
         """
-        if text:
-            indentation = self._indentation * self._indentation_level
-            self._stream.write(indentation + text)
+        if not text:
+            return self
 
+        if self._is_new_line:
+            self._stream.write(self._indentation * self._indentation_level)
+            self._is_new_line = False
+        self._stream.write(text)
         return self
 
     def write_line(self, line):
@@ -104,9 +108,20 @@ class SourceFile(object):
         :return: self.
         """
         self._stream.write(self._line_separator)
+        self._is_new_line = True
         return self
 
     def emit(self):
         for element in self._elements:
             element.emit(self)
 
+    def emit_element(self, element):
+        if element is not None:
+            element.emit(self)
+        return self
+
+    def emit_indented(self, element):
+        if element is not None:
+            with self.indented_block():
+                self.emit_element(element)
+        return self

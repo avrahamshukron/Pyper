@@ -23,8 +23,9 @@ class TextCodeElement(CodeElement):
     Used mainly for lazy testing stuff, and generally discouraged as an actual
     code element.
     """
-    def __init__(self, text):
-        self.text = StringIO(text)
+    def __init__(self, initial_value):
+        self.text = StringIO()
+        self.text.write(initial_value)
 
     def add_line(self, line):
         self.text.write("\n" + line)

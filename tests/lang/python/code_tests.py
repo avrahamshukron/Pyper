@@ -1,12 +1,12 @@
 from pyper.core.code import TextCodeElement
 from pyper.lang.python.code import Class, Decorator, Parameters, IfStatement, \
-    ElseStatement
+    ElseStatement, ElifStatement
 from tests.core import CodeTest
 
 
 class PythonCodeTest(CodeTest):
 
-    EMPTY_CLASS_TEMPLATE = "class %s(%s):\n    pass\n"
+    EMPTY_CLASS_TEMPLATE = "class %s(%s):\n    pass\n\n"
 
     def test_class_default_parent(self):
         class_name = "TestClass"
@@ -54,7 +54,7 @@ class PythonCodeTest(CodeTest):
     def test_simple_if_statement(self):
         if_statement = IfStatement(
             condition=TextCodeElement("True and False"),
-            positive_block=TextCodeElement("print 'hello'")
+            body=TextCodeElement("print 'hello'")
         )
         expected = "if True and False:\n    print 'hello'\n"
         self.check_element_code_emission(if_statement, expected)
@@ -68,28 +68,28 @@ class PythonCodeTest(CodeTest):
         self.check_element_code_emission(if_statement, expected)
 
     def test_elif_statement(self):
-        else_code = "print 'This is elif'"
+        body = "print 'This is elif'"
         condition = "True or False"
-        statement = ElseStatement(
-            TextCodeElement(else_code),
-            condition=TextCodeElement(condition)
+        statement = ElifStatement(
+            condition=TextCodeElement(condition),
+            body=TextCodeElement(body)
         )
-        expected = "elif %s:\n%s%s\n" % (condition, self.indentation, else_code)
+        expected = "elif %s:\n%s%s\n" % (condition, self.indentation, body)
         self.check_element_code_emission(statement, expected)
 
     def test_if_elif_else_statement(self):
-        if_code = "print 'This is if'"
+        if_body = "print 'This is if'"
         elif_code = "print 'This is elif'"
         else_code = "print 'This is else'"
         condition = "True or False"
 
         statement = IfStatement(
             condition=TextCodeElement(condition),
-            positive_block=TextCodeElement(if_code),
-            else_clause=ElseStatement(
-                code_element=TextCodeElement(elif_code),
+            body=TextCodeElement(if_body),
+            alternative=ElifStatement(
+                body=TextCodeElement(elif_code),
                 condition=TextCodeElement(condition),
-                else_clause=ElseStatement(
+                alternative=ElseStatement(
                     TextCodeElement(else_code)
                 )
             )
@@ -102,7 +102,7 @@ class PythonCodeTest(CodeTest):
                     "%s%s\n") % (
                        condition,
                        self.indentation,
-                       if_code,
+                       if_body,
                        condition,
                        self.indentation,
                        elif_code,
@@ -110,4 +110,3 @@ class PythonCodeTest(CodeTest):
                        else_code
                    )
         self.check_element_code_emission(statement, expected)
-

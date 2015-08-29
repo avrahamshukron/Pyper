@@ -9,7 +9,62 @@ class Pass(CodeElement):
         source_file.write_line("pass")
 
 
-class Class(CodeElement):
+class ContainerCodeElement(CodeElement):
+
+    def __init__(self, body=None):
+        self._elements = []
+        if body is not None:
+            self._elements.append(body)
+
+    def emit_header(self, source_file):
+        """
+        Emits the header of the code element.
+        The header is the first line before the indented body.
+        Every container code element in Python have a header, so this method
+        must be implemented.
+
+        :param source_file: The source file.
+        :type source_file: pyper.core.source.SourceFile.
+        """
+        raise NotImplementedError("Subclasses must implement")
+
+    def emit(self, source_file):
+        """
+        :param source_file: The source file.
+        :type source_file: pyper.core.source.SourceFile.
+        """
+        self.emit_header(source_file)
+        self.emit_body(source_file)
+        self.emit_footer(source_file)
+
+    def emit_body(self, source_file):
+        """
+        Emits the body of this element. The body is indented one level relative
+        to the header and footer.
+
+        :param source_file: The source file.
+        :type source_file: pyper.core.source.SourceFile.
+        """
+        if not self._elements:
+            self._elements.append(Pass())
+
+        with source_file.indented_block():
+            for element in self._elements:
+                element.emit(source_file)
+        source_file.line_feed()
+
+    def emit_footer(self, source_file):
+        """
+        Emits the finishing part of the code element.
+        Called after ``emit_body``.
+
+        :param source_file: The source file.
+        :type source_file: pyper.core.source.SourceFile.
+        """
+        pass
+
+
+class Class(ContainerCodeElement):
 
     def __init__(self, name, parents="object"):
         """
@@ -20,58 +75,44 @@ class Class(CodeElement):
         :param parents: The name/names of all the super classes of this class.
         :type parents: (tuple | str)
         """
+        ContainerCodeElement.__init__(self, body=None)
         self._name = name
         self._base_class_names = ((parents,) if isinstance(parents, str)
                                   else parents)
-        self._class_attributes = []
-        self._methods = []
 
-    def emit(self, source_file):
-        """
-        Emits the current code element into the supplied source file.
-
-        :param source_file:
-        :type source_file: SourceFile.
-        """
+    def emit_header(self, source_file):
         parents = ("object" if not self._base_class_names
                    else ", ".join(self._base_class_names))
         cls_declaration = "class %s(%s):" % (self._name, parents)
         source_file.write_line(cls_declaration)
-        with source_file.indented_block():
-            if not self._class_attributes and not self._methods:
-                # An empty class
-                source_file.emit_element(Pass())
-            for element in self._class_attributes + self._methods:
-                source_file.emit_element(element).line_feed()
 
     def add_class_attribute(self, name, value):
         pass
 
     def add_method(self, method):
-        self._methods.append(method)
+        self._elements.append(method)
 
     def add_static_method(self, method):
         method.add_decorator(Decorators.STATICMETHOD)
         self.add_method(method)
 
 
-class Function(CodeElement):
+class FunctionDeclaration(ContainerCodeElement):
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, parameters, body=None):
+        ContainerCodeElement.__init__(self, body=body)
         self._name = name
-        self.parameters = Parameters(*args, **kwargs)
+        self._parameters = parameters
         self._decorators = []
-        self._body = Pass()
 
-    def emit(self, source_file):
+    def emit_header(self, source_file):
         for decorator in self._decorators:
             decorator.emit(source_file)
 
         source_file.write("def %s" % (self._name,))\
-            .emit_element(self.parameters)\
+            .emit_element(self._parameters)\
             .write(":")\
-            .line_feed()\
-            .emit_indented(self._body)
+            .line_feed()
 
     def add_decorator(self, decorator):
         self._decorators.append(decorator)
@@ -131,62 +172,80 @@ class Parameters(CodeElement):
         return self.var_args_list.__nonzero__()
 
 
-class IfStatement(CodeElement):
+class ConditionedCodeElement(ContainerCodeElement):
 
-    def __init__(self, condition, positive_block, else_clause=None):
+    KEYWORD = None
+
+    def __init__(self, condition, body, alternative=None):
         """
         Initializes a new ``if`` statement.
 
         :param condition: An expression that can be evaluated as a ``bool``.
-        :param positive_block: Code element to execute if ``condition``
-            evaluates to ``True``.
-        :param else_clause: An ElseStatement instance to be executed if
-            ``condition`` evaluates to ``False``.
+        :param body: Code element to execute if ``condition`` evaluates to
+            ``True``.
+        :param alternative: An (ElseStatement | ElifStatement) instance.
+        :type alternative: ElseStatement | ElifStatement
         """
+        ContainerCodeElement.__init__(self, body)
         self._condition = condition
-        self._positive_block = positive_block
-        self._else_clause = else_clause
+        self._alternative = alternative
 
-    def emit(self, source_file):
+    def emit_header(self, source_file):
         """
         :param source_file: The source file.
         :type source_file: pyper.core.source.SourceFile
         """
-        source_file.write("if ")\
+        source_file.write("%s " % (self.KEYWORD,))\
             .emit_element(self._condition)\
             .write(":")\
-            .line_feed()\
-            .emit_indented(self._positive_block)\
-            .line_feed()\
-            .emit_element(self._else_clause)
+            .line_feed()
+
+    def emit_footer(self, source_file):
+        if self._alternative is not None:
+            self._alternative.emit(source_file)
 
 
-class ElseStatement(CodeElement):
+class ElifStatement(ConditionedCodeElement):
+    KEYWORD = "elif"
 
-    def __init__(self, code_element, condition=None, else_clause=None):
-        """
-        Initializes a new Else Statement.
 
-        :param code_element: The code element of the else clause.
-        :param condition: An optional boolean expression. If provided, will turn
-            the ``else`` into an ``elif`` clause.
-        """
-        self._code = code_element if code_element is not None else Pass()
-        self._condition = condition
-        self._else_clause = else_clause
+class IfStatement(ConditionedCodeElement):
+    KEYWORD = "if"
 
-    def emit(self, source_file):
+
+class ElseStatement(ContainerCodeElement):
+
+    ELSE = "else"
+
+    def emit_header(self, source_file):
         """
         :type source_file: pyper.core.source.SourceFile
         """
-        keyword = "else" if self._condition is None else "elif "
-        source_file.write(keyword)\
+        source_file.write(self.ELSE).write(":").line_feed()
+
+
+class WhileStatement(CodeElement):
+
+    def __init__(self, condition, body):
+        self._condition = condition
+        self._body = body if body is not None else Pass()
+
+    def emit(self, source_file):
+        source_file.write("while ")\
             .emit_element(self._condition)\
             .write(":")\
             .line_feed()\
-            .emit_indented(self._code)\
-            .line_feed()\
-            .emit_element(self._else_clause)
+            .emit_indented(self._body)\
+            .line_feed()
+
+
+class StringLiteral(CodeElement):
+
+    def __init__(self, value):
+        self._value = value
+
+    def emit(self, source_file):
+        source_file.write("\"%s\"", self._value)
 
 
 class Decorators(object):

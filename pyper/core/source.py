@@ -1,11 +1,6 @@
 from io import FileIO
 import os
 
-WHITESPACE = " "
-FOUR_SPACES = WHITESPACE * 4
-TWO_SPACES = WHITESPACE * 2
-TAB = "\t"
-
 
 class IndentedContext(object):
     """
@@ -23,13 +18,17 @@ class IndentedContext(object):
 
 class SourceFile(object):
 
+    WHITESPACE = " "
+    FOUR_SPACES = WHITESPACE * 4
+    TWO_SPACES = WHITESPACE * 2
+    TAB = "\t"
+
     def __init__(self, stream, indentation=TAB, line_separator=os.linesep):
         """
         Initializes a new source file.
 
         :param stream: The underlying stream that the source code will be
             written to. Should be an object that has a ``write`` method.
-        :type stream: FileIO
         :param indentation: The indentation string of one indentation unit.
         :type indentation: str
         :param line_separator: The line separator for this file.

@@ -76,11 +76,12 @@ class SourceFile(object):
         self._elements.append(code_element)
         return self
 
-    def write(self, text):
+    def write(self, text, *args):
         """
         Writes a text at the current indentation level.
 
         :param text: The text to write.
+        :param args: Any format argument for the text.
         :return: self.
         """
         if not text:
@@ -89,7 +90,7 @@ class SourceFile(object):
         if self._is_new_line:
             self._stream.write(self._indentation * self._indentation_level)
             self._is_new_line = False
-        self._stream.write(text)
+        self._stream.write(text % args)
         return self
 
     def write_line(self, line):

@@ -1,6 +1,6 @@
 from pyper.core.code import TextCodeElement
 from pyper.lang.python.code import Class, Decorator, Parameters, IfStatement, \
-    ElseStatement, ElifStatement
+    ElseStatement, ElifStatement, ContainerCodeElement
 from tests.core import CodeTest
 
 
@@ -34,6 +34,8 @@ class PythonCodeTest(CodeTest):
         decorator = Decorator(name)
         self.check_element_code_emission(decorator, expected)
 
+
+class ParametersTest(CodeTest):
     def test_positional_parameters(self):
         params = Parameters(required_args=("a", "b"))
         self.check_element_code_emission(params, "(a, b)")
@@ -51,6 +53,8 @@ class PythonCodeTest(CodeTest):
                             optional_args=(("a", 1), ("b", 2)))
         self.check_element_code_emission(params, "(a, b, a=1, b=2)")
 
+
+class ConditionedCodeTest(CodeTest):
     def test_simple_if_statement(self):
         if_statement = IfStatement(
             condition=TextCodeElement("True and False"),
@@ -110,3 +114,9 @@ class PythonCodeTest(CodeTest):
                        else_code
                    )
         self.check_element_code_emission(statement, expected)
+
+
+class ContainerCodeElementTest(CodeTest):
+    def test_abstraction(self):
+        cce = ContainerCodeElement()
+        self.assertRaises(NotImplementedError, cce.emit_header, None)

@@ -125,3 +125,6 @@ class SourceFile(object):
             with self.indented_block():
                 self.emit_element(element)
         return self
+
+    def is_new_line(self):
+        return self._is_new_line

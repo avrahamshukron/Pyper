@@ -51,7 +51,9 @@ class ContainerCodeElement(CodeElement):
         with source_file.indented_block():
             for element in self._elements:
                 element.emit(source_file)
-        source_file.line_feed()
+
+        if not source_file.is_new_line():
+            source_file.line_feed()
 
     def emit_footer(self, source_file):
         """
@@ -66,7 +68,9 @@ class ContainerCodeElement(CodeElement):
 
 class Class(ContainerCodeElement):
 
-    def __init__(self, name, parents="object"):
+    OBJECT = "object"
+
+    def __init__(self, name, parents=OBJECT):
         """
         Initializes a new Class object.
 
@@ -81,13 +85,11 @@ class Class(ContainerCodeElement):
                                   else parents)
 
     def emit_header(self, source_file):
-        parents = ("object" if not self._base_class_names
-                   else ", ".join(self._base_class_names))
+        parents = ", ".join(self._base_class_names)
         cls_declaration = "class %s(%s):" % (self._name, parents)
         source_file.write_line(cls_declaration)
-
-    def add_class_attribute(self, name, value):
-        pass
+        if self._elements:
+            source_file.line_feed()
 
     def add_method(self, method):
         self._elements.append(method)
@@ -99,10 +101,12 @@ class Class(ContainerCodeElement):
 
 class FunctionDeclaration(ContainerCodeElement):
 
-    def __init__(self, name, parameters, body=None):
+    def __init__(self, name, parameters=None, body=None):
         ContainerCodeElement.__init__(self, body=body)
         self._name = name
-        self._parameters = parameters
+        self._parameters = (parameters
+                            if parameters is not None
+                            else Parameters())
         self._decorators = []
 
     def emit_header(self, source_file):
@@ -120,13 +124,13 @@ class FunctionDeclaration(ContainerCodeElement):
 
 class Decorator(CodeElement):
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, parameters=None):
         self._name = name
-        self.parameters = Parameters(*args, **kwargs)
+        self.parameters = parameters
 
     def emit(self, source_file):
         source_file.write("@%s" % (self._name, ))
-        if self.parameters:
+        if self.parameters is not None:
             self.parameters.emit(source_file)
         source_file.line_feed()
 
@@ -160,8 +164,8 @@ class VarArgsList(CodeElement):
 
 class Parameters(CodeElement):
 
-    def __init__(self, required_args=None, optional_args=None):
-        self.var_args_list = VarArgsList(required_args, optional_args)
+    def __init__(self, positional_args=None, named_args=None):
+        self.var_args_list = VarArgsList(positional_args, named_args)
 
     def emit(self, source_file):
         source_file.write("(")\
